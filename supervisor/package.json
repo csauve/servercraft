@@ -1,0 +1,15 @@
+{
+  "name": "supervisor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "proxy.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "csauve <connorsauve@gmail.com> (http://t3hz0r.com)",
+  "license": "MIT",
+  "dependencies": {
+    "rcon-client": "^3.0.2",
+    "tcp-proxy.js": "^1.1.1"
+  }
+}
