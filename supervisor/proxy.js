@@ -1,15 +1,19 @@
 const net = require("net");
 const {Rcon} = require("rcon-client");
+const AWS = require("aws-sdk");
 
 const config = {
-  proxyPort: 8080,
+  proxyPort: 25565,
   healthCheckIntervalSecs: 10,
   emptyShutdownMins: 1,
+  servicePollingRateMs: 1000,
   server: {
-    host: "localhost",
-    port: 25565,
-    rconPort: 25575,
-    rconPassword: "test"
+    ecsService: process.env.ECS_SERVICE || "servercraft-server",
+    ecsCluster: process.env.ECS_CLUSTER || "default",
+    host: process.env.SERVER_HOST || "localhost",
+    port: process.env.SERVER_PORT || 25564,
+    rconPort: process.env.RCON_PORT || 25575,
+    rconPassword: process.env.RCON_PASSWORD
   }
 };
 
@@ -18,18 +22,62 @@ const serverState = {
   emptySince: null
 };
 
+const ecs = new AWS.ECS();
+
+const setDesiredCount = async function(count) {
+  console.log(`Setting desired count of ${config.server.ecsService} to ${count}`);
+  const serviceOpts = {
+    desiredCount: count,
+    service: config.server.ecsService,
+    cluster: config.server.ecsCluster
+  };
+  return new Promise((resolve, reject) => {
+    ecs.updateService(serviceOpts, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+};
+
+const waitForServiceCount = async function(count) {
+  console.log(`Waiting for ${config.server.ecsService} count to be ${count}`);
+  return new Promise((resolve, reject) => {
+    const handle = setInterval(() => {
+      const serviceOpts = {
+        services: [config.server.ecsService],
+        cluster: config.server.ecsCluster,
+      };
+      ecs.describeServices(serviceOpts, (err, data) => {
+        if (err) {
+          clearInterval(handle);
+          reject(err);
+        } else {
+          const currCount = data.services[0].runningCount;
+          if (currCount == count) {
+            clearInterval(handle);
+            resolve(count);
+          }
+        }
+      });
+    }, config.servicePollingRateMs)
+  })
+};
+
+//maybe be called multiple times -- must be idempotent
 const stopServer = async function() {
-  console.log("Stopping the server");
-  //todo
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await setDesiredCount(0);
+  await waitForServiceCount(0);
   serverState.available = false;
   serverState.emptySince = null;
 };
 
+//maybe be called multiple times -- must be idempotent
 const startServer = async function() {
-  console.log("Starting the server");
-  //todo
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await setDesiredCount(1);
+  await waitForServiceCount(1);
   serverState.available = true;
   serverState.emptySince = null;
 };

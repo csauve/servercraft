@@ -1,3 +1,3 @@
-logs
-ops.json
-world
+push.sh
+minecraft_server.jar
+data

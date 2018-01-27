@@ -7,5 +7,5 @@ COPY \
   /
 RUN ["npm", "install"]
 
-EXPOSE 8080
+EXPOSE 25565
 CMD ["node", "proxy.js"]
