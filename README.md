@@ -7,8 +7,6 @@ _This project is still a WIP._
 
 ## Todo
 * Write CloudFormation templates
-* Configuration management
-* Implement calls to EC2 container service to start and stop the server.
 
 ## Ideas for later
 * Scaling up the EC2 instances as more players join. Kick all players when the new server is provisioned and have them rejoin the proxy?
