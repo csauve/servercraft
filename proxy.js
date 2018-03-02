@@ -31,9 +31,9 @@ proxy.on("connections", (count) => {
   if (count == 0 && inactivityTimeout == null) {
     console.log(`Instance will be shut down in ${config.inactiveShutdownMins} minutes`);
     inactivityTimeout = setTimeout(async () => {
-      await instance.stop();
+      inactivityTimeout = null;
       instanceAvailable = false;
-      clearTimeout(inactivityTimeout);
+      await instance.stop();
     }, config.inactiveShutdownMins * 60 * 1000);
   } else if (count > 0 && inactivityTimeout != null) {
     console.log(`Proxy connection count is ${count}. Cancelling instance shutdown`);
