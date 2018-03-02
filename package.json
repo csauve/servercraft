@@ -1,0 +1,9 @@
+{
+  "name": "servercraft",
+  "version": "0.0.1",
+  "main": "proxy.js",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.187.0"
+  }
+}
