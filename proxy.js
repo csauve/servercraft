@@ -12,6 +12,8 @@ const config = {
     host: process.env.FORWARD_HOST
   },
   instanceId: process.env.INSTANCE_ID,
+  startupDelay: process.env.STARTUP_DELAY ?
+    parseInt(process.env.STARTUP_DELAY) : 5000,
   inactiveShutdownMins: process.env.INACTIVE_SHUTDOWN_MINS ?
     parseInt(process.env.INACTIVE_SHUTDOWN_MINS) : 10
 };
@@ -19,7 +21,7 @@ const config = {
 let inactivityTimeout = null;
 let instanceAvailable = false;
 
-const instance = new EC2Client(config.instanceId);
+const instance = new EC2Client(config.instanceId, config.startupDelay);
 const proxy = new BlockingProxy(config.forwardServer, config.clientTimeout, async () => {
   if (!instanceAvailable) {
     await instance.start();
