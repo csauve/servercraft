@@ -1,11 +1,11 @@
 const EC2Client = require("./lib/ec2");
-const BlockingProxy = require("./lib/blockingProxy");
+const PausingProxy = require("./lib/pausingProxy");
 
 const config = {
   proxyPort: process.env.PROXY_PORT ?
     parseInt(process.env.PROXY_PORT) : 25565,
   clientTimeout: process.env.CLIENT_TIMEOUT ?
-    parseInt(process.env.CLIENT_TIMEOUT) : 10000,
+    parseInt(process.env.CLIENT_TIMEOUT) : 120000,
   forwardServer: {
     port: process.env.FORWARD_PORT ?
       parseInt(process.env.FORWARD_PORT) : 25565,
@@ -13,34 +13,53 @@ const config = {
   },
   instanceId: process.env.INSTANCE_ID,
   startupDelay: process.env.STARTUP_DELAY ?
-    parseInt(process.env.STARTUP_DELAY) : 5000,
-  inactiveShutdownMins: process.env.INACTIVE_SHUTDOWN_MINS ?
-    parseInt(process.env.INACTIVE_SHUTDOWN_MINS) : 10
+    parseInt(process.env.STARTUP_DELAY) : 15000,
+  inactiveShutdownSecs: process.env.INACTIVE_SHUTDOWN_SECS ?
+    parseInt(process.env.INACTIVE_SHUTDOWN_SECS) : 600
 };
 
 let inactivityTimeout = null;
-let instanceAvailable = false;
 
+//proxy begins in paused state
+const proxy = new PausingProxy(config.forwardServer, config.clientTimeout);
 const instance = new EC2Client(config.instanceId, config.startupDelay);
-const proxy = new BlockingProxy(config.forwardServer, config.clientTimeout, async () => {
-  if (!instanceAvailable) {
-    await instance.start();
-    instanceAvailable = true;
-  }
-});
 
-proxy.on("connections", (count) => {
-  if (count == 0 && inactivityTimeout == null) {
-    console.log(`Instance will be shut down in ${config.inactiveShutdownMins} minutes`);
-    inactivityTimeout = setTimeout(async () => {
+const scheduleShutdown = async function() {
+  try {
+    if (inactivityTimeout == null) {
+      console.log(`Instance will be shut down in ${config.inactiveShutdownSecs}s`);
+      inactivityTimeout = setTimeout(async () => {
+        inactivityTimeout = null;
+        proxy.pause();
+        await instance.stop();
+      }, config.inactiveShutdownSecs * 1000);
+    }
+  } catch (err) {
+    console.error("Failed to perform scheduled shutdown", err);
+  }
+};
+
+const ensureAvailable = async function() {
+  try {
+    if (inactivityTimeout != null) {
+      console.log("Cancelling instance shutdown");
+      clearTimeout(inactivityTimeout);
       inactivityTimeout = null;
-      instanceAvailable = false;
-      await instance.stop();
-    }, config.inactiveShutdownMins * 60 * 1000);
-  } else if (count > 0 && inactivityTimeout != null) {
-    console.log(`Proxy connection count is ${count}. Cancelling instance shutdown`);
-    clearTimeout(inactivityTimeout);
-    inactivityTimeout = null;
+    }
+    await instance.start();
+    proxy.resume();
+  } catch (err) {
+    console.error("Failed to ensure server availability", err);
+  }
+};
+
+//emitted at startup with 0 connections
+proxy.on("connections", (count) => {
+  console.log(`Client connection count is ${count}`);
+  if (count > 0) {
+    ensureAvailable();
+  } else {
+    scheduleShutdown();
   }
 });
 

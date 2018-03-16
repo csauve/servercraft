@@ -1,21 +1,28 @@
 # servercraft
-Want to run your Minecraft server in AWS? Use _servercraft_ to keep your costs down (~$4/month). A lightweight supervisor runs in front of the minecraft server, starting the instance on an initial connection attempt, reverse-proxying TCP connections to the server, and shutting it down after a period of emptiness.
+Want to run your Minecraft server in AWS? Use _servercraft_ to keep your costs down. A lightweight supervisor proxy runs in front of the minecraft server, blocking initial TCP connections until the instance is ready, and shutting it down after a period of inactivity.
 
-Aside from a minor delay when the first player joins, players are none-the-wiser of this orchestration. The supervisor can be run 24/7 on cheap instances for the appearance of high availability, with the minecraft server itself running on more powerful instances only when needed.
+The supervisor can be run 24/7 on cheaper instances for the appearance of high availability, with the minecraft server itself running on a more powerful instance only when needed.
 
-This assumes working knowledge with AWS. The recommended setup is as follows:
+The first player to join will experience a delay, and possibly a timeout. Minecraft has a client-side timeout of **30s**, while it takes **~12s** for an EC2 instance and **~16s** for a Minecraft server to start. This doesn't leave a lot of room to spare!
 
-## Server instance setup
-Provision an EC2 instance of the desired type. Some things to consider:
+## Minecraft server instance setup
+This assumes working knowledge with AWS. First, provision an EC2 instance to host the Minecraft server. Some things to consider:
 
-* Use a lightweight AMI like `Alpine-3.7-r2-Hardened-EC2` for a quick boot
+* Use a lightweight AMI like `Alpine-3.7-r2-Hardened-EC2` for a quicker boot
 * Keep the minecraft server & world on the root EBS volume
+* Use a GP2 root volume and a t2.medium for the server to start quick enough to avoid client timeouts when joining.
 * Provision as much space as you need/want to pay for
 * Consider typical player counts when choosing the instance type. It can always be changed later
 * Make sure the instance's security group is open to the Minecraft server port
 * I suggest assigning an elastic IP to it's ENI for troubleshooting purposes
 
-To speed things up, here's a server start script:
+Assuming the AMI above, first install some packages:
+
+```sh
+sudo apk add wget vim screen openjdk8
+```
+
+Next, download the [latest minecraft server JAR](https://minecraft.net/en-us/download/server) and create `~/run.sh` with execute permissions:
 
 ```sh
 #!/bin/sh
@@ -25,18 +32,19 @@ SERVER_HOME="/home/alpine"
 HEAP_SIZE="2048M"
 
 cd $SERVER_HOME
+echo eula=true > eula.txt
 
 case "$1" in
 "stop")
   screen -X -S minecraft quit
   ;;
 "start")
-  screen -S minecraft -d -m java -server -Xmx${HEAP_SIZE} -Xms${HEAP_SIZE} -jar minecraft_server.jar nogui
+  screen -S minecraft -d -m java -server -Xmx${HEAP_SIZE} -Xms${HEAP_SIZE} -jar server.jar nogui
   ;;
 esac
 ```
 
-OpenRC service:
+The minecraft server needs to start automatically when the instance does. To create an OpenRC service, become root and run: `rc-update add minecraft default` and add the following to `/etc/init.d/minecraft` with execute permissions:
 
 ```sh
 #!/sbin/openrc-run
@@ -55,6 +63,8 @@ depend() {
   after firewall
 }
 ```
+
+Give it a test run, and configure `ops.json` and `server.properties` to your liking.
 
 ## Proxy setup
 With the server instance set up, we now need this proxy running in front of it. This app is Dockerized so it can be run in ECS. Avoid Fargate because of the higher costs to run a service 24/7. If possible, run this proxy on a reserved instance.
