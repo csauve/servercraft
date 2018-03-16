@@ -13,7 +13,7 @@ const config = {
   },
   instanceId: process.env.INSTANCE_ID,
   startupDelay: process.env.STARTUP_DELAY ?
-    parseInt(process.env.STARTUP_DELAY) : 15000,
+    parseInt(process.env.STARTUP_DELAY) : 16000,
   inactiveShutdownSecs: process.env.INACTIVE_SHUTDOWN_SECS ?
     parseInt(process.env.INACTIVE_SHUTDOWN_SECS) : 600
 };

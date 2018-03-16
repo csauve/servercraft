@@ -1,5 +1,5 @@
 # servercraft
-Want to run your Minecraft server in AWS? Use _servercraft_ to keep your costs down. A lightweight supervisor proxy runs in front of the minecraft server, blocking initial TCP connections until the instance is ready, and shutting it down after a period of inactivity.
+Want to run your Minecraft server in AWS? Use _servercraft_ to keep your costs down. A lightweight supervisor proxy runs in front of the minecraft server, parking initial TCP connections until the instance is ready, and shutting it down after a period of inactivity.
 
 The supervisor can be run 24/7 on cheaper instances for the appearance of high availability, with the minecraft server itself running on a more powerful instance only when needed.
 
