@@ -1,0 +1,13 @@
+# Network config
+LISTEN_PORT=25565
+FORWARD_PORT=25565
+FORWARD_HOST=xxx.xxx.xxx.xxx
+
+# These values are all in milliseconds
+CLIENT_TIMEOUT=120000
+INACTIVE_TIMEOUT=900000
+STARTUP_DELAY=16000
+
+# EC2 Instance config
+INSTANCE_ID=i-xxxxxxxxxxxxxxxxx
+INSTANCE_REGION=xx-xxxxx-x
