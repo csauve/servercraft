@@ -1,3 +1,6 @@
 node_modules
-push.sh
-run.sh
+build.sh
+stop.sh
+logs.sh
+config.txt
+sampleconfig.txt

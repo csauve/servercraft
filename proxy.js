@@ -2,8 +2,8 @@ const EC2Client = require("./lib/ec2");
 const PausingProxy = require("./lib/pausingProxy");
 
 const config = {
-  proxyPort: process.env.PROXY_PORT ?
-    parseInt(process.env.PROXY_PORT) : 25565,
+  proxyPort: process.env.LISTEN_PORT ?
+    parseInt(process.env.LISTEN_PORT) : 25565,
   clientTimeout: process.env.CLIENT_TIMEOUT ?
     parseInt(process.env.CLIENT_TIMEOUT) : 120000,
   forwardServer: {
@@ -14,8 +14,8 @@ const config = {
   instanceId: process.env.INSTANCE_ID,
   startupDelay: process.env.STARTUP_DELAY ?
     parseInt(process.env.STARTUP_DELAY) : 16000,
-  inactiveShutdownSecs: process.env.INACTIVE_SHUTDOWN_SECS ?
-    parseInt(process.env.INACTIVE_SHUTDOWN_SECS) : 600
+  inactiveShutdownSecs: process.env.INACTIVE_TIMEOUT ?
+    parseInt(process.env.INACTIVE_TIMEOUT) : 900000
 };
 
 let inactivityTimeout = null;
@@ -27,12 +27,12 @@ const instance = new EC2Client(config.instanceId, config.startupDelay);
 const scheduleShutdown = async function() {
   try {
     if (inactivityTimeout == null) {
-      console.log(`Instance will be shut down in ${config.inactiveShutdownSecs}s`);
+      console.log(`Instance will be shut down in ${config.inactiveShutdownSecs/1000}s if no connection activity`);
       inactivityTimeout = setTimeout(async () => {
         inactivityTimeout = null;
         proxy.pause();
         await instance.stop();
-      }, config.inactiveShutdownSecs * 1000);
+      }, config.inactiveShutdownSecs);
     }
   } catch (err) {
     console.error("Failed to perform scheduled shutdown", err);
@@ -64,3 +64,8 @@ proxy.on("connections", (count) => {
 });
 
 proxy.listen(config.proxyPort);
+
+process.on('SIGINT', function() {
+  console.log( "\nGracefully exiting from SIGINT (Ctrl-C)" );
+  process.exit(1);
+});
